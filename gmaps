@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Map with Route, Radius Circles, and Places</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    #map {
+      height: 500px;
+      width: 100%;
+    }
+    #error-message {
+      color: red;
+      margin-bottom: 10px;
+      font-weight: bold;
+    }
+    .input-group {
+      margin-bottom: 10px;
+    }
+    #places-list {
+      margin-top: 20px;
+    }
+    #places-list ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    #places-list li {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h2>Map with Route, Radius Circles, and Places</h2>
+  <div id="error-message"></div>
+  <div class="input-group">
+    <label for="start">Start Location:</label>
+    <input type="text" id="start" value="33 W 17th St, New York, NY">
+  </div>
+  <div class="input-group">
+    <label for="end">End Location:</label>
+    <input type="text" id="end" value="20 W 34th St, New York, NY">
+  </div>
+  <div class="input-group">
+    <label for="radius">Radius (meters):</label>
+    <input type="number" id="radius" value="300">
+  </div>
+  <button onclick="displayRouteWithCircles()">Find Route with Circles and Places</button>
+  <div id="map"></div>
+  <div id="places-list">
+    <h3>Places Along the Route</h3>
+    <ul></ul>
+  </div>
+
+  <script>
+    var map;
+    var directionsService;
+    var directionsRenderer;
+    var placesService;
+    var circles = [];
+    var placeMarkers = [];
+
+    // Initialize the map and services
+    function initMap() {
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 40.7527, lng: -73.9772 }, // Default: New York City
+        zoom: 13
+      });
+      directionsService = new google.maps.DirectionsService();
+      directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
+      placesService = new google.maps.places.PlacesService(map);
+      console.log("Places library loaded:", google.maps.places);
+    }
+
+    // Clear existing circles from the map
+    function clearCircles() {
+      for (var i = 0; i < circles.length; i++) {
+        circles[i].setMap(null);
+      }
+      circles = [];
+    }
+
+    // Clear existing place markers from the map
+    function clearPlaceMarkers() {
+      for (var i = 0; i < placeMarkers.length; i++) {
+        placeMarkers[i].setMap(null);
+      }
+      placeMarkers = [];
+    }
+
+    // Display error messages
+    function showError(message) {
+      document.getElementById("error-message").textContent = message;
+    }
+
+    // Clear error messages
+    function clearError() {
+      document.getElementById("error-message").textContent = "";
+    }
+
+    // Create a circle for each point along the route
+    function createRadiusCircles(path, radius) {
+      var bounds = new google.maps.LatLngBounds();
+      for (var i = 0; i < path.length; i++) {
+        var circle = new google.maps.Circle({
+          center: path[i],
+          radius: radius,
+          map: map,
+          fillColor: '#FF0000',
+          fillOpacity: 0.1, // Slightly visible circles
+          strokeColor: '#FF0000',
+          strokeOpacity: 0,
+          strokeWeight: 2
+        });
+        circles.push(circle);
+        bounds.union(circle.getBounds());
+      }
+      map.fitBounds(bounds);
+    }
+
+    // Search for places within the radius of sampled coordinates
+    function searchPlacesAlongRoute(path, radius) {
+      var placesList = document.querySelector("#places-list ul");
+      placesList.innerHTML = ""; // Clear previous list
+      var addedPlaces = new Set(); // Track unique places by place_id
+
+      path.forEach(function(point, index) {
+        if (index % 5 === 0) { // Search every 5th point to reduce API calls
+          console.log("Searching places for point:", index, "at", point.lat(), point.lng());
+          var request = {
+            location: point,
+            radius: radius
+          };
+
+          placesService.nearbySearch(request, function(results, status) {
+            console.log("Search status for point", index, ":", status);
+            if (status === google.maps.places.PlacesServiceStatus.OK) {
+              console.log("Found", results.length, "places for point", index);
+              results.forEach(function(place) {
+                if (!addedPlaces.has(place.place_id)) {
+                  addedPlaces.add(place.place_id);
+
+                  // Add marker for unique place
+                  var marker = new google.maps.Marker({
+                    position: place.geometry.location,
+                    map: map,
+                    title: place.name,
+                    icon: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
+                  });
+                  placeMarkers.push(marker);
+                  console.log("Added marker for", place.name, "at", place.geometry.location.lat(), place.geometry.location.lng());
+
+                  // Add place to the list with coordinates
+                  var li = document.createElement("li");
+                  var lat = place.geometry.location.lat().toFixed(4);
+                  var lng = place.geometry.location.lng().toFixed(4);
+                  li.textContent = place.name + " - " + place.vicinity + " (Lat: " + lat + ", Lng: " + lng + ")";
+                  placesList.appendChild(li);
+                  console.log("Added place to list:", place.name);
+                }
+              });
+            } else {
+              console.log("No places found or error for point", index, ":", status);
+            }
+          });
+        }
+      });
+
+      // Log total markers after a delay for async searches
+      setTimeout(function() {
+        console.log("Total place markers:", placeMarkers.length);
+      }, 5000);
+    }
+
+    // Calculate route and display circles and places along it
+    function displayRouteWithCircles() {
+      clearError();
+      clearCircles();
+      clearPlaceMarkers();
+
+      var start = document.getElementById("start").value;
+      var end = document.getElementById("end").value;
+      var radius = parseInt(document.getElementById("radius").value);
+
+      if (!start || !end) {
+        showError("Please provide both start and end locations.");
+        return;
+      }
+      if (isNaN(radius) || radius <= 0) {
+        showError("Please provide a valid radius.");
+        return;
+      }
+
+      var request = {
+        origin: start,
+        destination: end,
+        travelMode: google.maps.TravelMode.WALKING
+      };
+
+      directionsService.route(request, function(result, status) {
+        if (status === 'OK') {
+          directionsRenderer.setDirections(result);
+          var route = result.routes[0];
+          var path = route.overview_path;
+          createRadiusCircles(path, radius);
+          searchPlacesAlongRoute(path, radius);
+        } else {
+          showError("Directions request failed: " + status);
+        }
+      });
+    }
+  </script>
+  <!-- Replace YOUR_API_KEY with your actual Google Maps API key -->
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAnskerN7bwR6W4J_nRLG4Mtnb7zcjnvYg&libraries=places,geometry&callback=initMap"></script>
+</body>
+</html>
