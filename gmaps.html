@@ -10,9 +10,10 @@
       margin: 0;
       padding: 20px;
     }
-    #map {
+    #map, #map2 {
       height: 500px;
       width: 100%;
+      margin-bottom: 20px;
     }
     #error-message {
       color: red;
@@ -22,14 +23,14 @@
     .input-group {
       margin-bottom: 10px;
     }
-    #places-list {
+    #places-list, #random-selection {
       margin-top: 20px;
     }
-    #places-list ul {
+    #places-list ul, #random-selection ul {
       list-style-type: none;
       padding: 0;
     }
-    #places-list li {
+    #places-list li, #random-selection li {
       margin-bottom: 10px;
     }
   </style>
@@ -50,11 +51,21 @@
     <input type="number" id="radius" value="300">
   </div>
   <button onclick="displayRouteWithCircles()">Find Route with Circles and Places</button>
+  
+  <!-- First Map: Main route with circles and places -->
   <div id="map"></div>
   <div id="places-list">
     <h3>Places Along the Route</h3>
     <ul></ul>
   </div>
+  <div id="random-selection">
+    <h3>Random Selections</h3>
+    <ul></ul>
+  </div>
+  
+  <!-- Second Map: Walking route connecting original start, three random selections, and original end -->
+  <h3>Optimal Walking Route (Including Original Start/End)</h3>
+  <div id="map2"></div>
 
   <script>
     var map;
@@ -63,33 +74,60 @@
     var placesService;
     var circles = [];
     var placeMarkers = [];
+    var allPlaces = []; // Global array to store unique places
 
-    // Initialize the map and services
+    // Variables for the second map
+    var map2;
+    var directionsService2;
+    var directionsRenderer2;
+    var randomMarkers = [];
+
+    // Global variables for original start/end locations
+    var originalStartLocation, originalEndLocation;
+
+    // Initialize both maps and services
     function initMap() {
+      // First map initialization
       map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: 40.7527, lng: -73.9772 }, // Default: New York City
+        center: { lat: 40.7527, lng: -73.9772 },
         zoom: 13
       });
       directionsService = new google.maps.DirectionsService();
       directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
       placesService = new google.maps.places.PlacesService(map);
       console.log("Places library loaded:", google.maps.places);
+
+      // Second map initialization (for the extended route)
+      map2 = new google.maps.Map(document.getElementById("map2"), {
+        center: { lat: 40.7527, lng: -73.9772 },
+        zoom: 13
+      });
+      directionsService2 = new google.maps.DirectionsService();
+      directionsRenderer2 = new google.maps.DirectionsRenderer({ map: map2 });
     }
 
-    // Clear existing circles from the map
+    // Clear existing circles from the first map
     function clearCircles() {
-      for (var i = 0; i < circles.length; i++) {
-        circles[i].setMap(null);
-      }
+      circles.forEach(function(circle) {
+        circle.setMap(null);
+      });
       circles = [];
     }
 
-    // Clear existing place markers from the map
+    // Clear existing place markers from the first map
     function clearPlaceMarkers() {
-      for (var i = 0; i < placeMarkers.length; i++) {
-        placeMarkers[i].setMap(null);
-      }
+      placeMarkers.forEach(function(marker) {
+        marker.setMap(null);
+      });
       placeMarkers = [];
+    }
+
+    // Clear markers on the second map
+    function clearRandomMarkers() {
+      randomMarkers.forEach(function(marker) {
+        marker.setMap(null);
+      });
+      randomMarkers = [];
     }
 
     // Display error messages
@@ -102,49 +140,45 @@
       document.getElementById("error-message").textContent = "";
     }
 
-    // Create a circle for each point along the route
+    // Create a circle for each point along the route on the first map
     function createRadiusCircles(path, radius) {
       var bounds = new google.maps.LatLngBounds();
-      for (var i = 0; i < path.length; i++) {
+      path.forEach(function(point) {
         var circle = new google.maps.Circle({
-          center: path[i],
+          center: point,
           radius: radius,
           map: map,
           fillColor: '#FF0000',
-          fillOpacity: 0.1, // Slightly visible circles
+          fillOpacity: 0.1,
           strokeColor: '#FF0000',
           strokeOpacity: 0,
           strokeWeight: 2
         });
         circles.push(circle);
         bounds.union(circle.getBounds());
-      }
+      });
       map.fitBounds(bounds);
     }
 
-    // Search for places within the radius of sampled coordinates
+    // Search for places along the route
     function searchPlacesAlongRoute(path, radius) {
       var placesList = document.querySelector("#places-list ul");
-      placesList.innerHTML = ""; // Clear previous list
-      var addedPlaces = new Set(); // Track unique places by place_id
+      placesList.innerHTML = "";
+      allPlaces = [];
+      var addedPlaces = new Set();
 
       path.forEach(function(point, index) {
-        if (index % 5 === 0) { // Search every 5th point to reduce API calls
-          console.log("Searching places for point:", index, "at", point.lat(), point.lng());
+        if (index % 5 === 0) {
           var request = {
             location: point,
             radius: radius
           };
-
           placesService.nearbySearch(request, function(results, status) {
-            console.log("Search status for point", index, ":", status);
-            if (status === google.maps.places.PlacesServiceStatus.OK) {
-              console.log("Found", results.length, "places for point", index);
+            if (status === google.maps.places.PlacesServiceStatus.OK && results) {
               results.forEach(function(place) {
                 if (!addedPlaces.has(place.place_id)) {
                   addedPlaces.add(place.place_id);
-
-                  // Add marker for unique place
+                  allPlaces.push(place);
                   var marker = new google.maps.Marker({
                     position: place.geometry.location,
                     map: map,
@@ -152,31 +186,180 @@
                     icon: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
                   });
                   placeMarkers.push(marker);
-                  console.log("Added marker for", place.name, "at", place.geometry.location.lat(), place.geometry.location.lng());
-
-                  // Add place to the list with coordinates
                   var li = document.createElement("li");
                   var lat = place.geometry.location.lat().toFixed(4);
                   var lng = place.geometry.location.lng().toFixed(4);
-                  li.textContent = place.name + " - " + place.vicinity + " (Lat: " + lat + ", Lng: " + lng + ")";
+                  li.textContent = place.name + " - " + (place.vicinity || '') + " (Lat: " + lat + ", Lng: " + lng + ")";
                   placesList.appendChild(li);
-                  console.log("Added place to list:", place.name);
                 }
               });
-            } else {
-              console.log("No places found or error for point", index, ":", status);
             }
           });
         }
       });
 
-      // Log total markers after a delay for async searches
+      // Wait a few seconds and then output random selections
       setTimeout(function() {
-        console.log("Total place markers:", placeMarkers.length);
-      }, 5000);
+        outputRandomSelections(allPlaces);
+      }, 6000);
     }
 
-    // Calculate route and display circles and places along it
+    // Compute total distance between an array of points
+    function computeTotalDistance(points) {
+      var total = 0;
+      for (var i = 0; i < points.length - 1; i++) {
+        var p1 = new google.maps.LatLng(points[i].lat, points[i].lng);
+        var p2 = new google.maps.LatLng(points[i+1].lat, points[i+1].lng);
+        total += google.maps.geometry.spherical.computeDistanceBetween(p1, p2);
+      }
+      return total;
+    }
+
+    // Generate all permutations of an array (helper function)
+    function permutations(arr) {
+      if (arr.length === 0) return [[]];
+      var result = [];
+      for (var i = 0; i < arr.length; i++) {
+        var rest = arr.slice(0, i).concat(arr.slice(i+1));
+        var restPerms = permutations(rest);
+        restPerms.forEach(function(perm) {
+          result.push([arr[i]].concat(perm));
+        });
+      }
+      return result;
+    }
+
+    // Get the optimal route ordering with fixed start and end points and intermediate random points
+    function getOptimalRouteForIntermediatePoints(randomPoints, start, end) {
+      var perms = permutations(randomPoints);
+      var bestOrder = null;
+      var bestDistance = Infinity;
+      perms.forEach(function(perm) {
+        var ordering = [start].concat(perm).concat([end]);
+        var d = computeTotalDistance(ordering);
+        if (d < bestDistance) {
+          bestDistance = d;
+          bestOrder = ordering;
+        }
+      });
+      return bestOrder;
+    }
+
+    // Display the second map with a route that includes original start, three random selections, and original end.
+    function displaySecondMap(randomLocations) {
+      // Ensure that original start and end locations have been set.
+      if (!originalStartLocation || !originalEndLocation) {
+        console.error("Original start or end location not defined.");
+        return;
+      }
+      
+      clearRandomMarkers();
+
+      // Compute optimal route order: original start, best ordering of randomLocations, original end.
+      var optimalRoute = getOptimalRouteForIntermediatePoints(randomLocations, originalStartLocation, originalEndLocation);
+
+      // Center the second map based on the average of all points.
+      var avgLat = optimalRoute.reduce((sum, pt) => sum + pt.lat, 0) / optimalRoute.length;
+      var avgLng = optimalRoute.reduce((sum, pt) => sum + pt.lng, 0) / optimalRoute.length;
+      map2.setCenter({lat: avgLat, lng: avgLng});
+      map2.setZoom(14);
+
+      // Place markers for each point with labels.
+      optimalRoute.forEach(function(pt) {
+        var marker = new google.maps.Marker({
+          position: {lat: pt.lat, lng: pt.lng},
+          map: map2,
+          title: pt.name,
+          label: { text: pt.name, fontSize: "10px" }
+        });
+        randomMarkers.push(marker);
+      });
+
+      // Prepare waypoints (all points except first and last).
+      var waypoints = optimalRoute.slice(1, optimalRoute.length - 1).map(function(pt) {
+        return { location: new google.maps.LatLng(pt.lat, pt.lng), stopover: true };
+      });
+
+      var request = {
+        origin: new google.maps.LatLng(optimalRoute[0].lat, optimalRoute[0].lng),
+        destination: new google.maps.LatLng(optimalRoute[optimalRoute.length - 1].lat, optimalRoute[optimalRoute.length - 1].lng),
+        waypoints: waypoints,
+        travelMode: google.maps.TravelMode.WALKING
+      };
+
+      directionsService2.route(request, function(result, status) {
+        if (status === 'OK') {
+          directionsRenderer2.setDirections(result);
+        } else {
+          console.error("Directions request failed on second map: " + status);
+        }
+      });
+    }
+
+    // Returns a random place of a given type from the places array
+    function getRandomPlaceByType(places, type) {
+      const filtered = places.filter(function(place) {
+        return place.types && place.types.includes(type);
+      });
+      if (filtered.length === 0) {
+        return null;
+      }
+      const randomIndex = Math.floor(Math.random() * filtered.length);
+      const selected = filtered[randomIndex];
+      return {
+        name: selected.name,
+        lat: selected.geometry.location.lat(),
+        lng: selected.geometry.location.lng()
+      };
+    }
+
+    // Output random selections and, if available, display the extended route on the second map.
+    function outputRandomSelections(places) {
+      var randomSelectionList = document.querySelector("#random-selection ul");
+      randomSelectionList.innerHTML = "";
+
+      const randomRestaurant = getRandomPlaceByType(places, 'restaurant');
+      const randomShop = getRandomPlaceByType(places, 'store');
+      const randomLandmark = getRandomPlaceByType(places, 'tourist_attraction');
+
+      if (randomRestaurant) {
+        var li = document.createElement("li");
+        li.innerHTML = randomRestaurant.name + " (Lat: " + randomRestaurant.lat + ", Lng: " + randomRestaurant.lng + ")";
+        randomSelectionList.appendChild(li);
+      } else {
+        var li = document.createElement("li");
+        li.textContent = "No restaurant found.";
+        randomSelectionList.appendChild(li);
+      }
+
+      if (randomShop) {
+        var li = document.createElement("li");
+        li.innerHTML = randomShop.name + " (Lat: " + randomShop.lat + ", Lng: " + randomShop.lng + ")";
+        randomSelectionList.appendChild(li);
+      } else {
+        var li = document.createElement("li");
+        li.textContent = "No shop/store found.";
+        randomSelectionList.appendChild(li);
+      }
+
+      if (randomLandmark) {
+        var li = document.createElement("li");
+        li.innerHTML = randomLandmark.name + " (Lat: " + randomLandmark.lat + ", Lng: " + randomLandmark.lng + ")";
+        randomSelectionList.appendChild(li);
+      } else {
+        var li = document.createElement("li");
+        li.textContent = "No landmark/point of interest found.";
+        randomSelectionList.appendChild(li);
+      }
+
+      // If all three random selections are available, show the extended route on the second map.
+      if (randomRestaurant && randomShop && randomLandmark) {
+        var randomLocations = [randomRestaurant, randomShop, randomLandmark];
+        displaySecondMap(randomLocations);
+      }
+    }
+
+    // Calculate route and display circles and places on the first map.
     function displayRouteWithCircles() {
       clearError();
       clearCircles();
@@ -206,6 +389,19 @@
           directionsRenderer.setDirections(result);
           var route = result.routes[0];
           var path = route.overview_path;
+          
+          // Store original start and end (converted to our custom object format)
+          originalStartLocation = {
+            name: "Start",
+            lat: route.legs[0].start_location.lat(),
+            lng: route.legs[0].start_location.lng()
+          };
+          originalEndLocation = {
+            name: "End",
+            lat: route.legs[0].end_location.lat(),
+            lng: route.legs[0].end_location.lng()
+          };
+
           createRadiusCircles(path, radius);
           searchPlacesAlongRoute(path, radius);
         } else {
@@ -214,7 +410,7 @@
       });
     }
   </script>
-  <!-- Replace YOUR_API_KEY with your actual Google Maps API key -->
+  <!-- Replace the API key below with your actual Google Maps API key -->
   <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAnskerN7bwR6W4J_nRLG4Mtnb7zcjnvYg&libraries=places,geometry&callback=initMap"></script>
 </body>
 </html>
