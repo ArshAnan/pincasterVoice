@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { MarkerData, NYC_BOUNDS } from "../types";
 import GOOGLE_MAPS_API_KEY from "../page";
 import AddPinForm from "./AddPinForm";
@@ -52,6 +52,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   updateMapCenter,
 }) => {
   const titleRef = useRef<HTMLInputElement | null>(null);
+  const [selectedPin, setSelectedPin] = useState<MarkerData | null>(null);
 
   // Handle address submission with geocoding or fallback
   const handleAddressSearch = async (e: React.FormEvent) => {
@@ -111,15 +112,17 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   };
 
-  // Function to center the map on a specific marker
-  const handleMarkerClick = (coords: [number, number]) => {
+  // Function to handle pin selection
+  const handleMarkerClick = (coords: [number, number], marker: MarkerData) => {
     updateMapCenter(coords);
     setMapZoom(15);
+    setSelectedPin(marker); // Ensure selectedPin is updated
   };
 
   // Function to delete a marker
   const handleDeleteMarker = (id: string) => {
     setMarkers(markers.filter((marker) => marker.id !== id));
+    if (selectedPin?.id === id) setSelectedPin(null); // Clear selectedPin if deleted
   };
 
   return (
@@ -214,6 +217,58 @@ const Sidebar: React.FC<SidebarProps> = ({
         titleRef={titleRef.current}
       />
 
+      {/* Selected Pin Actions */}
+      {selectedPin && (
+        <div
+          className={styles.selectedPinActions}
+          style={{
+            background: "rgba(44, 62, 80, 0.6)",
+            padding: "15px",
+            borderRadius: "8px",
+            marginTop: "20px",
+          }}
+        >
+          <h3 className={styles.sectionHeading} style={{ color: "#3498db" }}>
+            Selected Pin
+          </h3>
+          <p style={{ color: "#ecf0f1" }}>
+            <strong>{selectedPin.title}</strong>
+          </p>
+          <p style={{ color: "#bdc3c7" }}>
+            {selectedPin.description || "No description"}
+          </p>
+          <button
+            onClick={() => updateMapCenter(selectedPin.coordinates)}
+            className={styles.actionButton}
+            style={{
+              background: "#2980b9",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              padding: "5px 10px",
+              marginRight: "5px",
+              cursor: "pointer",
+            }}
+          >
+            Go
+          </button>
+          <button
+            onClick={() => handleDeleteMarker(selectedPin.id)}
+            className={styles.actionButton}
+            style={{
+              background: "#e74c3c",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              padding: "5px 10px",
+              cursor: "pointer",
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      )}
+
       {/* Inline Markers List */}
       <div
         className={styles.markersList}
@@ -261,37 +316,20 @@ const Sidebar: React.FC<SidebarProps> = ({
                     {marker.description || "No description"}
                   </p>
                 </div>
-                <div className={styles.markerActions}>
-                  <button
-                    onClick={() => handleMarkerClick(marker.coordinates)}
-                    className={styles.actionButton}
-                    style={{
-                      background: "#2980b9",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      padding: "5px 10px",
-                      marginRight: "5px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Go
-                  </button>
-                  <button
-                    onClick={() => handleDeleteMarker(marker.id)}
-                    className={styles.actionButton}
-                    style={{
-                      background: "#e74c3c",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      padding: "5px 10px",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Delete
-                  </button>
-                </div>
+                <button
+                  onClick={() => handleMarkerClick(marker.coordinates, marker)}
+                  className={styles.actionButton}
+                  style={{
+                    background: "#2980b9",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "4px",
+                    padding: "5px 10px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Select
+                </button>
               </li>
             ))}
           </ul>

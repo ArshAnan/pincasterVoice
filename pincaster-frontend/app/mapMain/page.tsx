@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styles from "./MapPage.module.css";
 import MapView from "./components/MapView";
 import Sidebar from "./components/Sidebar";
@@ -33,6 +33,36 @@ export default function MapPage() {
   const [useFallback, setUseFallback] = useState(false);
   const [useVoiceCommands, setUseVoiceCommands] = useState(false);
 
+  const [showPopup, setShowPopup] = useState<string | null>(null);
+
+  const handleCurrentVoice = async (poiKey: string) => {
+    try {
+      const response = await fetch(`http://localhost:5000/get-audio?poi_key=${poiKey}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch audio");
+      }
+
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      audio.play();
+    } catch (error) {
+      console.error("Error playing audio:", error);
+      setShowPopup("Failed to play audio.");
+    }
+  };
+
+  const handleConversation = () => {
+    setShowPopup("Conversation Activated!");
+  };
+
+  useEffect(() => {
+    if (showPopup) {
+      const timer = setTimeout(() => setShowPopup(null), 3000); // Auto-hide popup after 3 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [showPopup]);
+
   // Update map center (used by pin clicks, etc)
   const updateMapCenter = (coords: [number, number]) => {
     setMapCenter([coords[1], coords[0]]); // Switch to [latitude, longitude]
@@ -40,10 +70,20 @@ export default function MapPage() {
 
   type Poi = { key: string; location: google.maps.LatLngLiteral };
   const PoiMarkers = (props: { pois: Poi[] }) => {
+    const [activePoi, setActivePoi] = useState<string | null>(null);
+    const [activePoiLocation, setActivePoiLocation] = useState<google.maps.LatLngLiteral | null>(null);
+
     return (
       <>
         {props.pois.map((poi: Poi) => (
-          <AdvancedMarker key={poi.key} position={poi.location}>
+          <AdvancedMarker
+            key={poi.key}
+            position={poi.location}
+            onClick={() => {
+              setActivePoi(poi.key); // Set the active POI
+              setActivePoiLocation(poi.location); // Set the location of the active POI
+            }}
+          >
             <Pin
               background={"#FBBC04"}
               glyphColor={"#000"}
@@ -51,6 +91,38 @@ export default function MapPage() {
             />
           </AdvancedMarker>
         ))}
+        {activePoi && activePoiLocation && (
+          <div
+            className={styles.featureSelectionUI}
+            style={{
+              position: "absolute",
+              top: `${activePoiLocation.lat}px`, // Adjust based on map projection
+              left: `${activePoiLocation.lng}px`, // Adjust based on map projection
+            }}
+          >
+            <p>Choose an action for {activePoi}:</p>
+            <button
+              onClick={() => {
+                handleCurrentVoice(activePoi!); // Pass the active POI key
+                setShowPopup(`Feature One Activated for ${activePoi}`);
+                setActivePoi(null); // Close the UI after selection
+              }}
+              className={styles.button}
+            >
+              Activate Feature One
+            </button>
+            <button
+              onClick={() => {
+                handleConversation();
+                setShowPopup(`Conversation Started for ${activePoi}`);
+                setActivePoi(null); // Close the UI after selection
+              }}
+              className={styles.button}
+            >
+              Start Conversation
+            </button>
+          </div>
+        )}
       </>
     );
   };
@@ -79,6 +151,9 @@ export default function MapPage() {
       onLoad={() => console.log("Maps API has loaded.")}
     >
       <div className={styles.container}>
+        {/* Popup */}
+        {showPopup && <div className={styles.popup}>{showPopup}</div>}
+
         <Sidebar
           address={address}
           setAddress={setAddress}
