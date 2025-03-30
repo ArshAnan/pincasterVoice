@@ -11,7 +11,9 @@
   "dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "next": "15.2.4"
+    "next": "15.2.4",
+    "mapbox-sdk": "^0.15.3",
+    "@mapbox/mapbox-sdk": "^0.15.3"
   },
   "devDependencies": {
     "typescript": "^5",
