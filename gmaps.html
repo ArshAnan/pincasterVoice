@@ -10,7 +10,7 @@
       margin: 0;
       padding: 20px;
     }
-    #map, #map2 {
+    #map, #map2, #map3 {
       height: 500px;
       width: 100%;
       margin-bottom: 20px;
@@ -32,6 +32,11 @@
     }
     #places-list li, #random-selection li {
       margin-bottom: 10px;
+    }
+    #nextStepBtn {
+      padding: 10px 20px;
+      font-size: 14px;
+      margin-bottom: 20px;
     }
   </style>
 </head>
@@ -63,31 +68,34 @@
     <ul></ul>
   </div>
   
-  <!-- Second Map: Walking route connecting original start, three random selections, and original end -->
+  <!-- Second Map: Entire optimal extended route (including original start/end and random selections) -->
   <h3>Optimal Walking Route (Including Original Start/End)</h3>
   <div id="map2"></div>
+  
+  <!-- Third Map: Step-by-step display of the optimal route -->
+  <h3>Step-by-Step Route (Including Original Start/End)</h3>
+  <div id="map3"></div>
+  <button id="nextStepBtn" onclick="nextStep()">Next Step</button>
 
   <script>
-    var map;
-    var directionsService;
-    var directionsRenderer;
-    var placesService;
+    var map, directionsService, directionsRenderer, placesService;
     var circles = [];
     var placeMarkers = [];
     var allPlaces = []; // Global array to store unique places
 
-    // Variables for the second map
-    var map2;
-    var directionsService2;
-    var directionsRenderer2;
-    var randomMarkers = [];
-
+    // Second map variables
+    var map2, directionsService2, directionsRenderer2, randomMarkers = [];
     // Global variables for original start/end locations
     var originalStartLocation, originalEndLocation;
 
-    // Initialize both maps and services
+    // Third map variables for step-by-step route
+    var map3, directionsService3, directionsRenderer3;
+    var optimalRouteData = []; // Array of points for the optimal route
+    var currentStep = 0;     // Index for current step in the step-by-step route
+
+    // Initialize all maps and services
     function initMap() {
-      // First map initialization
+      // First map
       map = new google.maps.Map(document.getElementById("map"), {
         center: { lat: 40.7527, lng: -73.9772 },
         zoom: 13
@@ -95,47 +103,42 @@
       directionsService = new google.maps.DirectionsService();
       directionsRenderer = new google.maps.DirectionsRenderer({ map: map });
       placesService = new google.maps.places.PlacesService(map);
-      console.log("Places library loaded:", google.maps.places);
-
-      // Second map initialization (for the extended route)
+      
+      // Second map
       map2 = new google.maps.Map(document.getElementById("map2"), {
         center: { lat: 40.7527, lng: -73.9772 },
         zoom: 13
       });
       directionsService2 = new google.maps.DirectionsService();
       directionsRenderer2 = new google.maps.DirectionsRenderer({ map: map2 });
+      
+      // Third map (for step-by-step route)
+      map3 = new google.maps.Map(document.getElementById("map3"), {
+        center: { lat: 40.7527, lng: -73.9772 },
+        zoom: 13
+      });
+      directionsService3 = new google.maps.DirectionsService();
+      directionsRenderer3 = new google.maps.DirectionsRenderer({ map: map3 });
     }
 
-    // Clear existing circles from the first map
+    // Clear functions for the first map
     function clearCircles() {
-      circles.forEach(function(circle) {
-        circle.setMap(null);
-      });
+      circles.forEach(circle => circle.setMap(null));
       circles = [];
     }
-
-    // Clear existing place markers from the first map
     function clearPlaceMarkers() {
-      placeMarkers.forEach(function(marker) {
-        marker.setMap(null);
-      });
+      placeMarkers.forEach(marker => marker.setMap(null));
       placeMarkers = [];
     }
-
-    // Clear markers on the second map
+    // Clear markers for second map
     function clearRandomMarkers() {
-      randomMarkers.forEach(function(marker) {
-        marker.setMap(null);
-      });
+      randomMarkers.forEach(marker => marker.setMap(null));
       randomMarkers = [];
     }
-
     // Display error messages
     function showError(message) {
       document.getElementById("error-message").textContent = message;
     }
-
-    // Clear error messages
     function clearError() {
       document.getElementById("error-message").textContent = "";
     }
@@ -143,7 +146,7 @@
     // Create a circle for each point along the route on the first map
     function createRadiusCircles(path, radius) {
       var bounds = new google.maps.LatLngBounds();
-      path.forEach(function(point) {
+      path.forEach(point => {
         var circle = new google.maps.Circle({
           center: point,
           radius: radius,
@@ -169,10 +172,7 @@
 
       path.forEach(function(point, index) {
         if (index % 5 === 0) {
-          var request = {
-            location: point,
-            radius: radius
-          };
+          var request = { location: point, radius: radius };
           placesService.nearbySearch(request, function(results, status) {
             if (status === google.maps.places.PlacesServiceStatus.OK && results) {
               results.forEach(function(place) {
@@ -197,14 +197,13 @@
           });
         }
       });
-
-      // Wait a few seconds and then output random selections
+      // Wait to allow searches to complete, then output random selections.
       setTimeout(function() {
         outputRandomSelections(allPlaces);
       }, 6000);
     }
 
-    // Compute total distance between an array of points
+    // Compute total distance for an array of points (each having .lat and .lng)
     function computeTotalDistance(points) {
       var total = 0;
       for (var i = 0; i < points.length - 1; i++) {
@@ -221,15 +220,14 @@
       var result = [];
       for (var i = 0; i < arr.length; i++) {
         var rest = arr.slice(0, i).concat(arr.slice(i+1));
-        var restPerms = permutations(rest);
-        restPerms.forEach(function(perm) {
+        permutations(rest).forEach(function(perm) {
           result.push([arr[i]].concat(perm));
         });
       }
       return result;
     }
 
-    // Get the optimal route ordering with fixed start and end points and intermediate random points
+    // Compute optimal route order for intermediate points with fixed start and end.
     function getOptimalRouteForIntermediatePoints(randomPoints, start, end) {
       var perms = permutations(randomPoints);
       var bestOrder = null;
@@ -245,26 +243,22 @@
       return bestOrder;
     }
 
-    // Display the second map with a route that includes original start, three random selections, and original end.
+    // Display the second map with the complete optimal route.
     function displaySecondMap(randomLocations) {
-      // Ensure that original start and end locations have been set.
       if (!originalStartLocation || !originalEndLocation) {
         console.error("Original start or end location not defined.");
         return;
       }
-      
       clearRandomMarkers();
-
-      // Compute optimal route order: original start, best ordering of randomLocations, original end.
       var optimalRoute = getOptimalRouteForIntermediatePoints(randomLocations, originalStartLocation, originalEndLocation);
-
-      // Center the second map based on the average of all points.
+      
+      // Center second map based on optimal route.
       var avgLat = optimalRoute.reduce((sum, pt) => sum + pt.lat, 0) / optimalRoute.length;
       var avgLng = optimalRoute.reduce((sum, pt) => sum + pt.lng, 0) / optimalRoute.length;
       map2.setCenter({lat: avgLat, lng: avgLng});
       map2.setZoom(14);
 
-      // Place markers for each point with labels.
+      // Place markers with labels.
       optimalRoute.forEach(function(pt) {
         var marker = new google.maps.Marker({
           position: {lat: pt.lat, lng: pt.lng},
@@ -275,7 +269,7 @@
         randomMarkers.push(marker);
       });
 
-      // Prepare waypoints (all points except first and last).
+      // Prepare waypoints (all except first and last).
       var waypoints = optimalRoute.slice(1, optimalRoute.length - 1).map(function(pt) {
         return { location: new google.maps.LatLng(pt.lat, pt.lng), stopover: true };
       });
@@ -294,16 +288,15 @@
           console.error("Directions request failed on second map: " + status);
         }
       });
+
+      // Also initialize the step-by-step view on the third map using the same optimal route.
+      initStepByStepRoute(optimalRoute);
     }
 
-    // Returns a random place of a given type from the places array
+    // Returns a random place of a given type from the places array.
     function getRandomPlaceByType(places, type) {
-      const filtered = places.filter(function(place) {
-        return place.types && place.types.includes(type);
-      });
-      if (filtered.length === 0) {
-        return null;
-      }
+      const filtered = places.filter(place => place.types && place.types.includes(type));
+      if (filtered.length === 0) return null;
       const randomIndex = Math.floor(Math.random() * filtered.length);
       const selected = filtered[randomIndex];
       return {
@@ -313,7 +306,7 @@
       };
     }
 
-    // Output random selections and, if available, display the extended route on the second map.
+    // Output random selections (restaurant, shop, landmark) and display second map if all are found.
     function outputRandomSelections(places) {
       var randomSelectionList = document.querySelector("#random-selection ul");
       randomSelectionList.innerHTML = "";
@@ -331,7 +324,6 @@
         li.textContent = "No restaurant found.";
         randomSelectionList.appendChild(li);
       }
-
       if (randomShop) {
         var li = document.createElement("li");
         li.innerHTML = randomShop.name + " (Lat: " + randomShop.lat + ", Lng: " + randomShop.lng + ")";
@@ -341,7 +333,6 @@
         li.textContent = "No shop/store found.";
         randomSelectionList.appendChild(li);
       }
-
       if (randomLandmark) {
         var li = document.createElement("li");
         li.innerHTML = randomLandmark.name + " (Lat: " + randomLandmark.lat + ", Lng: " + randomLandmark.lng + ")";
@@ -352,10 +343,59 @@
         randomSelectionList.appendChild(li);
       }
 
-      // If all three random selections are available, show the extended route on the second map.
       if (randomRestaurant && randomShop && randomLandmark) {
         var randomLocations = [randomRestaurant, randomShop, randomLandmark];
         displaySecondMap(randomLocations);
+      }
+    }
+
+    // Initialize the step-by-step view on the third map.
+    function initStepByStepRoute(routeData) {
+      optimalRouteData = routeData;
+      currentStep = 0;
+      updateStepByStepRoute();
+    }
+
+    // Update the third map to show the segment from optimalRouteData[currentStep] to optimalRouteData[currentStep+1].
+    function updateStepByStepRoute() {
+      // Check if we have a valid segment.
+      if (currentStep >= optimalRouteData.length - 1) {
+        document.getElementById("nextStepBtn").disabled = true;
+        return;
+      }
+      // Prepare a directions request for the current segment.
+      var origin = new google.maps.LatLng(optimalRouteData[currentStep].lat, optimalRouteData[currentStep].lng);
+      var destination = new google.maps.LatLng(optimalRouteData[currentStep + 1].lat, optimalRouteData[currentStep + 1].lng);
+      
+      // Center map3 on the midpoint of the segment.
+      var midLat = (optimalRouteData[currentStep].lat + optimalRouteData[currentStep + 1].lat) / 2;
+      var midLng = (optimalRouteData[currentStep].lng + optimalRouteData[currentStep + 1].lng) / 2;
+      map3.setCenter({lat: midLat, lng: midLng});
+      map3.setZoom(15);
+
+      var request = {
+        origin: origin,
+        destination: destination,
+        travelMode: google.maps.TravelMode.WALKING
+      };
+
+      directionsService3.route(request, function(result, status) {
+        if (status === 'OK') {
+          directionsRenderer3.setDirections(result);
+        } else {
+          console.error("Step-by-step directions request failed: " + status);
+        }
+      });
+    }
+
+    // Advance to the next step in the step-by-step route.
+    function nextStep() {
+      if (currentStep < optimalRouteData.length - 2) {
+        currentStep++;
+        updateStepByStepRoute();
+      } else {
+        alert("No further steps.");
+        document.getElementById("nextStepBtn").disabled = true;
       }
     }
 
@@ -390,7 +430,7 @@
           var route = result.routes[0];
           var path = route.overview_path;
           
-          // Store original start and end (converted to our custom object format)
+          // Store original start and end locations.
           originalStartLocation = {
             name: "Start",
             lat: route.legs[0].start_location.lat(),
