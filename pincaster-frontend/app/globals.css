@@ -5,11 +5,12 @@
   --foreground: #171717;
 }
 
-@theme inline {
+/* Removed the @theme rule as it is not a valid CSS at-rule */
+:root {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-mono: "Courier New", Courier, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
