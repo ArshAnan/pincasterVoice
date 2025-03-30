@@ -9,7 +9,10 @@ import {
   APIProvider,
   Map,
   MapCameraChangedEvent,
+  AdvancedMarker,
+  Pin,
 } from "@vis.gl/react-google-maps";
+import React from "react";
 
 // Mapbox access token - replace with your own from mapbox.com
 export const MAPBOX_ACCESS_TOKEN = "AIzaSyAnskerN7bwR6W4J_nRLG4Mtnb7zcjnvYg";
@@ -34,6 +37,41 @@ export default function MapPage() {
   const updateMapCenter = (coords: [number, number]) => {
     setMapCenter([coords[1], coords[0]]); // Switch to [latitude, longitude]
   };
+
+  type Poi = { key: string; location: google.maps.LatLngLiteral };
+  const PoiMarkers = (props: { pois: Poi[] }) => {
+    return (
+      <>
+        {props.pois.map((poi: Poi) => (
+          <AdvancedMarker key={poi.key} position={poi.location}>
+            <Pin
+              background={"#FBBC04"}
+              glyphColor={"#000"}
+              borderColor={"#000"}
+            />
+          </AdvancedMarker>
+        ))}
+      </>
+    );
+  };
+  // example poi's
+  const locations: Poi[] = [
+    { key: "statueOfLiberty", location: { lat: 40.6892, lng: -74.0445 } }, // Statue of Liberty
+    { key: "centralPark", location: { lat: 40.7829, lng: -73.9654 } }, // Central Park (center)
+    { key: "timesSquare", location: { lat: 40.758, lng: -73.9855 } }, // Times Square
+    { key: "empireStateBuilding", location: { lat: 40.7484, lng: -73.9857 } }, // Empire State Building
+    { key: "brooklynBridge", location: { lat: 40.7061, lng: -73.9969 } }, // Brooklyn Bridge
+    { key: "oneWorldTrade", location: { lat: 40.7127, lng: -74.0134 } }, // One World Trade Center
+    { key: "metMuseum", location: { lat: 40.7794, lng: -73.9632 } }, // Metropolitan Museum of Art
+    { key: "grandCentral", location: { lat: 40.7527, lng: -73.9772 } }, // Grand Central Terminal
+    { key: "highLine", location: { lat: 40.748, lng: -74.0048 } }, // The High Line (approx. center)
+    { key: "yankeeStadium", location: { lat: 40.8296, lng: -73.9262 } }, // Yankee Stadium
+    { key: "bryantPark", location: { lat: 40.7536, lng: -73.9832 } }, // Bryant Park
+    { key: "rockefellerCenter", location: { lat: 40.7587, lng: -73.9787 } }, // Rockefeller Center
+    { key: "wallStreet", location: { lat: 40.7069, lng: -74.0113 } }, // Wall Street (NYSE)
+    { key: "flatironBuilding", location: { lat: 40.7411, lng: -73.9897 } }, // Flatiron Building
+    { key: "coneyIsland", location: { lat: 40.5755, lng: -73.9707 } }, // Coney Island
+  ];
 
   return (
     <APIProvider
@@ -64,23 +102,11 @@ export default function MapPage() {
         />
 
         {/* Map Container */}
-        <MapView
-          markers={markers}
-          mapCenter={[mapCenter[1], mapCenter[0]]} // Pass as [longitude, latitude] to MapView
-          setMapCenter={(coords) => setMapCenter([coords[1], coords[0]])} // Ensure correct order
-          mapZoom={mapZoom}
-          setMarkers={setMarkers}
-          addPinMode={addPinMode}
-          tempPinLocation={tempPinLocation}
-          setTempPinLocation={setTempPinLocation}
-          showAddPinDialog={showAddPinDialog}
-          setShowAddPinDialog={setShowAddPinDialog}
-          useFallback={useFallback}
-          setUseFallback={setUseFallback}
-        />
+
         <Map
           defaultZoom={13}
-          defaultCenter={{ lat: -33.860664, lng: 151.208138 }}
+          defaultCenter={{ lat: 40.71, lng: -74.0 }}
+          mapId="dbb25aa561a27861"
           onCameraChanged={(ev: MapCameraChangedEvent) =>
             console.log(
               "camera changed:",
@@ -89,7 +115,9 @@ export default function MapPage() {
               ev.detail.zoom
             )
           }
-        ></Map>
+        >
+          <PoiMarkers pois={locations} />
+        </Map>
       </div>
     </APIProvider>
   );
