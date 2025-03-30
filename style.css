@@ -1,0 +1,13 @@
+/* ...existing code... */
+
+#map {
+    width: 100%;
+    height: 100vh;
+}
+
+/* Google Maps controls additional styling */
+.gm-style-cc {
+    display: none;
+}
+
+/* ...existing code... */
