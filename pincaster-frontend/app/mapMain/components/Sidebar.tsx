@@ -167,20 +167,20 @@ const Sidebar: React.FC<SidebarProps> = ({
         {error && <p className={styles.errorText} style={{ color: '#e74c3c', marginTop: '10px' }}>{error}</p>}
       </form>
       
-      {/* Add Pin Form Component */}
-      <AddPinForm 
-        addPinMode={addPinMode}
-        setAddPinMode={setAddPinMode}
-        mapCenter={mapCenter}
-        tempPinLocation={tempPinLocation}
-        setTempPinLocation={setTempPinLocation}
-        setShowAddPinDialog={setShowAddPinDialog}
-        markers={markers}
-        setMarkers={setMarkers}
-        titleRef={titleRef as React.RefObject<HTMLInputElement>}
-      />
-      
-      {/* Inline Markers List */}
+    {/* Add Pin Form Component */}
+        <AddPinForm 
+          addPinMode={addPinMode}
+          setAddPinMode={setAddPinMode}
+          mapCenter={mapCenter}
+          tempPinLocation={tempPinLocation}
+          setTempPinLocation={setTempPinLocation}
+          setShowAddPinDialog={setShowAddPinDialog}
+          markers={markers}
+          setMarkers={setMarkers}
+          titleRef={titleRef.current}
+        />
+        
+        {/* Inline Markers List */}
       <div className={styles.markersList} style={{
         background: 'rgba(44, 62, 80, 0.6)',
         padding: '15px',

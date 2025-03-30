@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, RefObject } from 'react';
+import { useState, useRef } from 'react';
 import { MarkerData } from '../types';
 import styles from '../MapPage.module.css';
 
@@ -13,7 +13,6 @@ interface AddPinFormProps {
   setShowAddPinDialog: (show: boolean) => void;
   markers: MarkerData[];
   setMarkers: (markers: MarkerData[]) => void;
-  titleRef: RefObject<HTMLInputElement>;
 }
 
 export default function AddPinForm({
@@ -25,8 +24,8 @@ export default function AddPinForm({
   setShowAddPinDialog,
   markers,
   setMarkers,
-  titleRef
 }: AddPinFormProps) {
+  const titleRef = useRef<HTMLInputElement>(null);
   const [defaultPinTitle, setDefaultPinTitle] = useState('New Pin');
 
   // Handle adding a new marker

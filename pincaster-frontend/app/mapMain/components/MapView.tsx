@@ -1,12 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from 'react';
-// Using Google Maps JavaScript API, not Mapbox
+import { useEffect, useRef } from 'react';
 import { Loader } from '@googlemaps/js-api-loader';
 import { MarkerData } from '../types';
 import styles from '../MapPage.module.css';
 
-// Set your Google Maps JavaScript API key here
 const GOOGLE_MAPS_API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || 'your_google_maps_api_key_here';
 
 interface MapViewProps {
@@ -30,29 +28,24 @@ export default function MapView({
 }: MapViewProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<google.maps.Map | null>(null);
-  const markersRef = useRef<{[key: string]: google.maps.Marker}>({});
-  const tempMarkerRef = useRef<google.maps.Marker | null>(null);
-  const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  const markersRef = useRef<{ [key: string]: google.maps.Marker }>({});
 
-  // Initialize map
   useEffect(() => {
-    if (map.current) return; // Initialize map only once
-    
+    if (map.current) return;
+
     const loader = new Loader({
       apiKey: GOOGLE_MAPS_API_KEY,
       version: "weekly",
-      // Explicitly using Google Maps JavaScript API
-      libraries: ["places", "geometry"]
+      libraries: ["places"],
     });
 
     loader.load().then(() => {
       if (mapContainer.current) {
         map.current = new google.maps.Map(mapContainer.current, {
-          center: { lat: mapCenter[0], lng: mapCenter[1] },
-          zoom: 13,
+          center: { lat: 40.7306, lng: -73.9352 }, // Centered around Brooklyn
+          zoom: 12, // Adjusted zoom level to include all markers
         });
 
-        // Set up map event handlers
         map.current.addListener('idle', () => {
           if (map.current) {
             const center = map.current.getCenter();
@@ -69,90 +62,70 @@ export default function MapView({
           }
         });
 
-        // Initialize infoWindow
-        infoWindowRef.current = new google.maps.InfoWindow();
+        // Add placeholder markers
+        const placeholderMarkers = [
+          { lat: 40.7128, lng: -74.0060, title: "Times Square" }, // Manhattan
+          { lat: 40.7306, lng: -73.9352, title: "Brooklyn" },     // Brooklyn
+          { lat: 40.7580, lng: -73.9855, title: "Central Park" }, // Central Park
+          { lat: 40.748817, lng: -73.985428, title: "Empire State Building" }, // Empire State Building
+          { lat: 40.7061, lng: -74.0086, title: "Wall Street" }   // Wall Street
+        ];
+
+        const markerIcon = {
+          url: "https://maps.google.com/mapfiles/ms/icons/red-dot.png", // Default Google Maps marker icon
+          scaledSize: new google.maps.Size(50, 50), // Increase size to 50x50
+        };
+
+        placeholderMarkers.forEach(marker => {
+          new google.maps.Marker({
+            position: { lat: marker.lat, lng: marker.lng },
+            map: map.current,
+            title: marker.title,
+            icon: markerIcon // Apply the custom icon
+          });
+        });
+
+        // Adjust the map bounds to fit all markers
+        const bounds = new google.maps.LatLngBounds();
+        placeholderMarkers.forEach(marker => {
+          bounds.extend(new google.maps.LatLng(marker.lat, marker.lng));
+        });
+        map.current.fitBounds(bounds);
       }
     });
-    
-    return () => {
-      // No need to explicitly remove the map with Google Maps
-      map.current = null;
-    };
-  }, []);
+  }, [mapCenter, setMapCenter, addPinMode, setTempPinLocation, setShowAddPinDialog]);
 
-  // Update markers when they change
   useEffect(() => {
     if (!map.current) return;
-    
-    // Clear any previous markers
-    Object.values(markersRef.current).forEach(marker => marker.setMap(null));
-    markersRef.current = {};
-    
+
+    const bounds = new google.maps.LatLngBounds();
+
     // Add markers to the map
-    markers.forEach(marker => {
-      if (marker.coordinates && map.current) {
-        const newMarker = new google.maps.Marker({
+    markers.forEach((marker) => {
+      if (!markersRef.current[marker.id]) {
+        const googleMarker = new google.maps.Marker({
           position: { lat: marker.coordinates[0], lng: marker.coordinates[1] },
           map: map.current,
           title: marker.title,
-          // Google Maps standard marker
-          icon: {
-            url: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
-          }
         });
-        
-        newMarker.addListener('click', () => {
-          if (infoWindowRef.current && map.current) {
-            infoWindowRef.current.setContent(`<h3>${marker.title}</h3>`);
-            infoWindowRef.current.open(map.current, newMarker);
-          }
-        });
-        
-        markersRef.current[marker.id] = newMarker;
+        markersRef.current[marker.id] = googleMarker;
+      }
+      bounds.extend(new google.maps.LatLng(marker.coordinates[0], marker.coordinates[1]));
+    });
+
+    // Remove markers that are no longer in the list
+    Object.keys(markersRef.current).forEach((id) => {
+      if (!markers.find((marker) => marker.id === id)) {
+        markersRef.current[id].setMap(null);
+        delete markersRef.current[id];
       }
     });
-    
-  }, [markers, map.current]);
 
-  // Update temporary pin marker
-  useEffect(() => {
-    if (!map.current) return;
-    
-    // Remove existing temp marker if any
-    if (tempMarkerRef.current) {
-      tempMarkerRef.current.setMap(null);
-      tempMarkerRef.current = null;
+    // Adjust the map to fit all markers
+    if (!bounds.isEmpty()) {
+      map.current.fitBounds(bounds);
     }
-    
-    // Add new temp marker if a location is set
-    if (tempPinLocation && map.current) {
-      tempMarkerRef.current = new google.maps.Marker({
-        position: { lat: tempPinLocation[0], lng: tempPinLocation[1] },
-        map: map.current,
-        title: 'New Location',
-        // Google Maps standard blue marker
-        icon: {
-          url: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
-        }
-      });
+  }, [markers]);
 
-      tempMarkerRef.current.addListener('click', () => {
-        if (infoWindowRef.current && map.current && tempMarkerRef.current) {
-          infoWindowRef.current.setContent('<h3>New Location</h3>');
-          infoWindowRef.current.open(map.current, tempMarkerRef.current);
-        }
-      });
-    }
-  }, [tempPinLocation, map.current]);
-
-  // Update map center when it changes
-  useEffect(() => {
-    if (map.current) {
-      map.current.setCenter({ lat: mapCenter[0], lng: mapCenter[1] });
-    }
-  }, [mapCenter]);
-
-  return (
-    <div ref={mapContainer} className={styles.mapContainer} />
-  );
+  return <div ref={mapContainer} className={styles.mapContainer}></div>;
 }

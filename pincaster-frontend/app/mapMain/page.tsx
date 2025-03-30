@@ -64,20 +64,20 @@ export default function MapPage() {
         />
 
         {/* Map Container */}
-        {/* <MapView
-        mapCenter={[mapCenter[1], mapCenter[0]]} // Pass as [longitude, latitude] to MapView
-        setMapCenter={(coords) => setMapCenter([coords[1], coords[0]])} // Ensure correct order
-        mapZoom={mapZoom}
-        markers={markers}
-        setMarkers={setMarkers}
-        addPinMode={addPinMode}
-        tempPinLocation={tempPinLocation}
-        setTempPinLocation={setTempPinLocation}
-        showAddPinDialog={showAddPinDialog}
-        setShowAddPinDialog={setShowAddPinDialog}
-        useFallback={useFallback}
-        setUseFallback={setUseFallback}
-      /> */}
+        <MapView
+          markers={markers}
+          mapCenter={[mapCenter[1], mapCenter[0]]} // Pass as [longitude, latitude] to MapView
+          setMapCenter={(coords) => setMapCenter([coords[1], coords[0]])} // Ensure correct order
+          mapZoom={mapZoom}
+          setMarkers={setMarkers}
+          addPinMode={addPinMode}
+          tempPinLocation={tempPinLocation}
+          setTempPinLocation={setTempPinLocation}
+          showAddPinDialog={showAddPinDialog}
+          setShowAddPinDialog={setShowAddPinDialog}
+          useFallback={useFallback}
+          setUseFallback={setUseFallback}
+        />
         <Map
           defaultZoom={13}
           defaultCenter={{ lat: -33.860664, lng: 151.208138 }}
