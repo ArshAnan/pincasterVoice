@@ -1,0 +1,14 @@
+{
+  "name": "pincaster-voice",
+  "version": "1.0.0",
+  "description": "Audio and chat server for Pincaster Voice application",
+  "main": "audio_server.py",
+  "scripts": {
+    "start-audio-server": "python audio_server.py",
+    "start-frontend": "cd pincaster-frontend && npm run dev",
+    "start": "concurrently \"npm run start-audio-server\" \"npm run start-frontend\""
+  },
+  "dependencies": {
+    "concurrently": "^8.2.0"
+  }
+}
