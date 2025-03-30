@@ -12,7 +12,7 @@ export const MAPBOX_ACCESS_TOKEN = 'pk.eyJ1IjoicGluY2FzdCIsImEiOiJjbGlicmpoeGQwO
 export default function MapPage() {
   const [address, setAddress] = useState('');
   const [markers, setMarkers] = useState<MarkerData[]>([]);
-  const [mapCenter, setMapCenter] = useState<[number, number]>([-74.00, 40.71]); // NYC coordinates
+  const [mapCenter, setMapCenter] = useState<[number, number]>([40.71, -74.00]); // Corrected to [latitude, longitude]
   const [mapZoom, setMapZoom] = useState(12); // Slightly higher zoom for city view
   const [error, setError] = useState<string | null>(null);
   
@@ -25,7 +25,7 @@ export default function MapPage() {
 
   // Update map center (used by pin clicks, etc)
   const updateMapCenter = (coords: [number, number]) => {
-    setMapCenter(coords);
+    setMapCenter([coords[1], coords[0]]); // Switch to [latitude, longitude]
   };
 
   return (
@@ -47,15 +47,15 @@ export default function MapPage() {
         showAddPinDialog={showAddPinDialog}
         setShowAddPinDialog={setShowAddPinDialog}
         useFallback={useFallback}
-        updateMapCenter={updateMapCenter}
+        updateMapCenter={(coords) => updateMapCenter([coords[1], coords[0]])} // Ensure correct order
         useVoiceCommands={useVoiceCommands}
         setUseVoiceCommands={setUseVoiceCommands}
       />
       
       {/* Map Container */}
       <MapView 
-        mapCenter={mapCenter}
-        setMapCenter={setMapCenter}
+        mapCenter={[mapCenter[1], mapCenter[0]]} // Pass as [longitude, latitude] to MapView
+        setMapCenter={(coords) => setMapCenter([coords[1], coords[0]])} // Ensure correct order
         mapZoom={mapZoom}
         markers={markers}
         setMarkers={setMarkers}
