@@ -105,7 +105,7 @@ def findPointsOfInterestInRadius(lat, lon, tolerance, dataset):
     dataset = pd.read_csv("pincasterVoice-micro-tourism-group\google_maps_restaurants(cleaned).csv",index_col="Name", usecols=usecols)
     index_col="Name"
     tolToLat = tolerance/110574 #coverts to degrees
-    tolToLon = tolerace / 111.320*math.cos(tolToLat * math.pi / 180)
+    tolToLon = tolerance / 111.320*math.cos(tolToLat * math.pi / 180)
     latMax = lat + tolToLat
     latMin = lat - tolToLat
     lonMax = lon + tolToLon
