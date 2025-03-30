@@ -2,7 +2,7 @@
 
 import React, { useRef } from 'react';
 import { MarkerData, NYC_BOUNDS } from '../types';
-import { MAPBOX_ACCESS_TOKEN } from '../page';
+import GOOGLE_MAPS_API_KEY from '../page';
 import AddPinForm from './AddPinForm';
 import styles from '../MapPage.module.css';
 
@@ -72,18 +72,15 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
     
     try {
-      // Define NYC bounding box: [west, south, east, north]
-      const nycBoundingBox = NYC_BOUNDS.toString();
-      
-      // Use Mapbox Geocoding API with NYC bounding box
+      // Use Google Maps Geocoding API
       const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${MAPBOX_ACCESS_TOKEN}&bbox=${nycBoundingBox}&limit=1`
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${GOOGLE_MAPS_API_KEY}`
       );
       
       const data = await response.json();
       
-      if (data.features && data.features.length > 0) {
-        const [lng, lat] = data.features[0].center;
+      if (data.results && data.results.length > 0) {
+        const { lng, lat } = data.results[0].geometry.location;
         setMapCenter([lng, lat]);
         setMapZoom(15);
         

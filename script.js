@@ -21,6 +21,9 @@ function initMap() {
             };
             map.setCenter(userLocation);
             addMarker(userLocation, 'Your location');
+
+            // Send the user's location to the backend
+            sendLocationToBackend(userLocation);
         }, () => {
             console.log('Error: The Geolocation service failed.');
         });
@@ -66,5 +69,29 @@ function clearMarkers() {
 
 // Initialize map when page loads
 document.addEventListener('DOMContentLoaded', initMap);
+
+function sendLocationToBackend(location) {
+    const backendUrl = '/api/location'; // Local API endpoint for MongoDB integration
+
+    fetch(backendUrl, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(location),
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Failed to send location to the backend');
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Location sent successfully:', data);
+    })
+    .catch(error => {
+        console.error('Error sending location:', error);
+    });
+}
 
 // ...existing code...
